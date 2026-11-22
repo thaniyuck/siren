@@ -11,18 +11,31 @@ def test_url_shape(record):
     base, digits = result.url.split("#")
     assert base == BASE and digits.isdigit()
     assert P.decode(digits)["code"] == record["code"]
-    assert "Rina" not in result.url
+    assert P.decode(digits)["name"] == record["name"]
 
 
 def test_fits_label_budget(record, long_record):
+    long_record["name"] = "Andrea Nathania Justendy Wijaya"
     for rec in (record, long_record):
         result = qr.make(rec, BASE)
         assert result.version <= qr.MAX_VERSION
 
 
-def test_tight_budget_widens_step(record):
-    result = qr.make(record, BASE, max_version=8)
-    assert result.version <= 8 and result.step_s > 60
+def test_all_examples_keep_one_point_per_minute(record, deff_record):
+    for rec in (record, deff_record):
+        assert qr.make(rec, BASE).step_s == 60
+
+
+def test_tight_budget_widens_step_one_minute_at_a_time(record):
+    result = qr.make(record, BASE, max_version=12)
+    assert result.version <= 12 and result.step_s > 60
+    # the step just below the chosen one must not have fitted
+    finer = P.bucket(record["readings"], step_s=result.step_s - 60)
+    assert qr.build_qr(BASE, P.encode(record, finer)).version > 12
+
+
+def test_long_transport_steps_up(long_record):
+    assert qr.make(long_record, BASE).step_s == 180
 
 
 def test_printed_label_scans_back_to_the_url(record):

@@ -28,26 +28,27 @@
 
     <section id="patient" hidden>
       <div class="card summary">
-        <div class="code-row">
-          <h1 id="code"></h1>
-          <span id="unit" class="muted"></span>
-        </div>
+        <h1 id="name"></h1>
+        <p id="ident" class="ident muted"></p>
         <div id="colour-block" class="colour-block">
           <span id="colour-icon" aria-hidden="true"></span>
           <span id="colour-text"></span>
         </div>
         <dl class="facts">
           <div><dt>NEWS2</dt><dd id="news2"></dd></div>
-          <div><dt>Terberat</dt><dd id="worst"></dd></div>
           <div><dt>START awal</dt><dd id="start-colour"></dd></div>
           <div><dt>Usia, kelamin</dt><dd id="who"></dd></div>
           <div><dt>Kesadaran</dt><dd id="acvpu"></dd></div>
           <div><dt>Oksigen</dt><dd id="oxygen"></dd></div>
           <div><dt>Nyeri</dt><dd id="pain"></dd></div>
-          <div><dt>TD manset terakhir</dt><dd id="cuff"></dd></div>
         </dl>
         <p class="complaint"><span class="muted">Keluhan</span> <span id="complaint"></span></p>
         <p id="asof" class="asof"></p>
+      </div>
+
+      <div class="card">
+        <h2>Kondisi saat ini dan terburuk</h2>
+        <div class="table-wrap"><table id="compare" class="compare"></table></div>
       </div>
 
       <div id="alerts" class="card alerts" hidden>

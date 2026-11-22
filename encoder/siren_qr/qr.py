@@ -14,9 +14,11 @@ from qrcode.util import MODE_8BIT_BYTE, MODE_NUMBER, QRData
 
 from . import payload as P
 
-# 58 mm printer, 384 dots: version 12 is 65 modules + 8 quiet = 73, so 5 dots
-# (0.63 mm) per module. Phones read that reliably at label distance.
-MAX_VERSION = 12
+# 58 mm printer, 384 dots. Versions up to 12 print at 5 dots (0.63 mm) per
+# module; 13 to 15 at 4 dots (0.50 mm). 15 keeps one trend point per minute
+# with the PPG blood-pressure series. If printed labels scan poorly, pass
+# max_version=12 (CLI --max-version 12): the trend step widens instead.
+MAX_VERSION = 15
 ERROR_CORRECTION = qrcode.constants.ERROR_CORRECT_M
 
 
@@ -47,16 +49,23 @@ def build_qr(base: str, digits: str) -> qrcode.QRCode:
     return qr
 
 
-def make(record: dict[str, Any], base_url: str, max_version: int = MAX_VERSION) -> QrResult:
-    """Fit the trend into the QR: start at one point per minute, widen the step if needed."""
+def make(record: dict[str, Any], base_url: str, max_version: int = MAX_VERSION,
+         include_name: bool = True) -> QrResult:
+    """Fit the trend into the QR with the finest step that fits.
+
+    Start at one point per minute (or wider for transports over MAX_POINTS
+    minutes), then widen one minute at a time: 1, 2, 3, 4 ... minutes.
+    """
     base = _normalise_base(base_url)
     readings = record.get("readings") or []
-    step = None
-    for _ in range(20):
-        trend = P.bucket(readings, step_s=step)
-        digits = P.encode(record, trend)
+    first = P.bucket(readings)
+    step = first.step_s
+    while True:
+        trend = first if step == first.step_s else P.bucket(readings, step_s=step)
+        digits = P.encode(record, trend, include_name)
         qr = build_qr(base, digits)
         if qr.version <= max_version:
             return QrResult(f"{base}#{digits}", qr, trend.step_s, len(trend.points))
-        step = trend.step_s * 2 if trend.points else 60
-    raise P.PayloadError("record does not fit in the QR even at a coarse step; shorten the text fields")
+        if len(trend.points) <= 2 or step >= 60 * 60:
+            raise P.PayloadError("record does not fit in the QR even at a coarse step; shorten the text fields")
+        step += 60

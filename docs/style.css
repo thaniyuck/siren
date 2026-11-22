@@ -68,7 +68,11 @@ h2 { font-size: 1rem; }
 .state.error { border-color: var(--critical); }
 
 
-.code-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.ident { margin: 4px 0 0; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.compare th, .compare td { text-align: left; padding: 6px 8px; }
+.compare tr > th:first-child { color: var(--muted); font-weight: 400; }
+.compare td { font-weight: 600; white-space: normal; }
+.compare .sub { display: block; font-size: 0.78rem; font-weight: 400; }
 
 .colour-block {
   display: flex; align-items: center; justify-content: center; gap: 10px;
@@ -111,7 +115,8 @@ h2 { font-size: 1rem; }
 
 .chart-head { display: flex; justify-content: space-between; align-items: baseline; }
 .chart { margin-top: 10px; }
-.chart-title { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.9rem; }
+.chart-title { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0 8px; font-size: 0.9rem; }
+.chart-title .name { white-space: nowrap; }
 .chart-title .name { color: var(--ink-2); font-weight: 600; }
 .chart-title .value { font-weight: 700; font-variant-numeric: tabular-nums; }
 .chart svg { display: block; width: 100%; height: auto; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
@@ -123,6 +128,13 @@ h2 { font-size: 1rem; }
 .chart .dot { fill: var(--series); stroke: var(--surface); stroke-width: 2; }
 .chart .cuff { stroke: var(--series); stroke-width: 2; stroke-linecap: round; }
 .chart .cuff-label { fill: var(--ink-2); font-weight: 600; }
+.chart .ppg-band { fill: var(--series); fill-opacity: 0.18; }
+.chart .ppg-edge { fill: none; stroke: var(--series); stroke-opacity: 0.55; stroke-width: 1; stroke-linejoin: round; }
+.legend { display: flex; gap: 14px; font-size: 0.78rem; color: var(--ink-2); margin: 2px 0 2px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { display: inline-block; }
+.legend .swatch-band { width: 16px; height: 10px; border-radius: 2px; background: color-mix(in srgb, var(--series) 18%, transparent); border-top: 1px solid var(--series); border-bottom: 1px solid var(--series); }
+.legend .swatch-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--series); }
 .chart .cursor { stroke: var(--ink-2); stroke-width: 1; }
 .chart .strip-MERAH { fill: var(--critical); }
 .chart .strip-KUNING { fill: var(--warning); }

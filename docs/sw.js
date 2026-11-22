@@ -1,7 +1,7 @@
 // Offline cache: after the first visit the viewer opens with no signal.
 // The patient data is in the URL fragment, which is never part of a request,
 // so nothing patient-related is ever cached or sent. Bump CACHE on each release.
-const CACHE = "siren-qr-v2";
+const CACHE = "siren-qr-v4";
 const FILES = ["./", "index.html", "app.js", "decode.js", "style.css", "icon.svg", "manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {

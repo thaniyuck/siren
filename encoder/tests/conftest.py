@@ -18,3 +18,8 @@ def record():
 @pytest.fixture
 def long_record():
     return json.loads((EXAMPLES / "patient_long_transport.json").read_text(encoding="utf-8"))
+
+
+@pytest.fixture
+def deff_record():
+    return json.loads((EXAMPLES / "patient_deffandio.json").read_text(encoding="utf-8"))

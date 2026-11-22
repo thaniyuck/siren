@@ -13,6 +13,7 @@ const ACVPU = ["A", "C", "V", "P", "U"];
 const SERIES = ["hr", "spo2", "rr", "temp", "news2", "colour"];
 const TEXTS = ["code", "unit", "complaint"];
 const MISSING = 255;
+const TAG_PPG_BP = 1;
 
 export class DecodeError extends Error {
   constructor(code, message) {
@@ -108,6 +109,30 @@ export function unpack(data) {
     series[key] = values;
     pos += n;
   }
+  // Optional tail: name, then tagged sections (unknown tags are skipped)
+  let name = null;
+  const end = data.length - 4;
+  if (pos < end) {
+    const len = u8();
+    name = utf8.decode(data.subarray(pos, pos + len)) || null;
+    pos += len;
+  }
+  series.sbp_ppg = new Array(n).fill(MISSING);
+  series.dbp_ppg = new Array(n).fill(MISSING);
+  while (pos + 3 <= end) {
+    const tag = u8(), len = u16();
+    const block = data.subarray(pos, pos + len);
+    pos += len;
+    if (tag === TAG_PPG_BP && len === 2 * n) {
+      ["sbp_ppg", "dbp_ppg"].forEach((key, j) => {
+        let prev = 0;
+        for (let i = 0; i < n; i++) {
+          prev = (prev + block[j * n + i]) % 256;
+          series[key][i] = prev;
+        }
+      });
+    }
+  }
 
   const points = [];
   for (let i = 0; i < n; i++) {
@@ -116,6 +141,7 @@ export function unpack(data) {
       hr: opt(series.hr[i]), spo2: opt(series.spo2[i]), rr: opt(series.rr[i]),
       temp: opt(series.temp[i], 10, 25), news2: opt(series.news2[i]),
       colour: COLOURS[series.colour[i] & 3],
+      sbp_ppg: opt(series.sbp_ppg[i]), dbp_ppg: opt(series.dbp_ppg[i]),
     });
   }
 
@@ -127,7 +153,7 @@ export function unpack(data) {
     pain: opt(pain), colour: COLOURS[colours & 3], worst_colour: COLOURS[(colours >> 2) & 3],
     start_colour: COLOURS[(colours >> 4) & 3], news2: opt(news2), news2_measured: measured,
     alerts: ALERTS.filter((_, i) => (alerts >> i) & 1),
-    cuffs, ...texts, points,
+    cuffs, ...texts, name, points,
   };
 }
 

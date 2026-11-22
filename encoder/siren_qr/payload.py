@@ -33,9 +33,13 @@ Byte layout (big-endian), version 1
     str  code, unit, complaint   each u8 length + UTF-8
     6 x n bytes       series HR, SpO2, RR, temp, NEWS2, colour; 255 = missing;
                       each series delta-coded modulo 256
+    -- optional tail (absent in the earliest labels; decoders stop at the CRC) --
+    str  name         u8 length + UTF-8 (max 32 bytes); length 0 = no name
+    sections          repeated: u8 tag, u16 length, data. Unknown tags are
+                      skipped, so new sections never break older viewers.
+                      tag 1  PPG blood-pressure estimate: n bytes SBP then
+                             n bytes DBP, mmHg, 255 = missing, delta-coded
     u32  CRC32 of everything above
-
-The patient's name is deliberately not part of the format.
 """
 
 from __future__ import annotations
@@ -75,7 +79,10 @@ ALERTS = [
 ]
 
 SERIES = ["hr", "spo2", "rr", "temp", "news2", "colour"]
+PPG_BP = ["sbp_ppg", "dbp_ppg"]   # tag 1
+TAG_PPG_BP = 1
 TEXT_LIMITS = {"code": 24, "unit": 16, "complaint": 48}
+NAME_LIMIT = 32
 
 
 class PayloadError(ValueError):
@@ -171,12 +178,14 @@ def bucket(readings: list[dict[str, Any]], step_s: int | None = None,
             "temp": _u8(med("temp"), 10, 25.0),          # 25.0 .. 50.4 degC in 0.1 steps
             "news2": _u8(max(news) if news else None),
             "colour": max(cols) if cols else 0,
+            "sbp_ppg": _u8(med("sbp_ppg")),
+            "dbp_ppg": _u8(med("dbp_ppg")),
         })
     return Trend(start=start, step_s=step, points=points)
 
 
 # ------------------------------------------------------------------ packing --
-def pack(record: dict[str, Any], trend: Trend) -> bytes:
+def pack(record: dict[str, Any], trend: Trend, include_name: bool = True) -> bytes:
     if trend.step_s > 65535 or len(trend.points) > 255:
         raise PayloadError("trend too long")
     start = trend.start or int(_ts(record.get("printed_at") or datetime.now(timezone.utc)))
@@ -214,6 +223,20 @@ def pack(record: dict[str, Any], trend: Trend) -> bytes:
         for p in trend.points:
             out.append((p[key] - prev) % 256)
             prev = p[key]
+
+    has_ppg = any(p.get(k, MISSING) != MISSING for p in trend.points for k in PPG_BP)
+    name = (record.get("name") or "").strip() if include_name else ""
+    if name or has_ppg:
+        out += _text(name, NAME_LIMIT)
+    if has_ppg:
+        block = bytearray()
+        for key in PPG_BP:
+            prev = 0
+            for p in trend.points:
+                value = p.get(key, MISSING)
+                block.append((value - prev) % 256)
+                prev = value
+        out += struct.pack(">BH", TAG_PPG_BP, len(block)) + block
 
     out += struct.pack(">I", zlib.crc32(out))
     return bytes(out)
@@ -253,6 +276,24 @@ def unpack(data: bytes) -> dict[str, Any]:
             values.append(prev)
         series[key] = values
         pos += n
+    name = None
+    end = len(data) - 4
+    if pos < end:                                 # optional tail: name, then sections
+        (length,) = take(">B")
+        name = data[pos:pos + length].decode("utf-8") or None
+        pos += length
+    for key in PPG_BP:
+        series[key] = [MISSING] * n
+    while pos + 3 <= end:
+        tag, length = take(">BH")
+        block = data[pos:pos + length]
+        pos += length
+        if tag == TAG_PPG_BP and length == 2 * n:
+            for j, key in enumerate(PPG_BP):
+                prev = 0
+                for i, b in enumerate(block[j * n:(j + 1) * n]):
+                    prev = (prev + b) % 256
+                    series[key][i] = prev
 
     def opt(v, scale=1.0, offset=0.0):
         return None if v == MISSING else round(v / scale + offset, 1)
@@ -264,12 +305,13 @@ def unpack(data: bytes) -> dict[str, Any]:
         "pain": opt(pain), "colour": COLOUR_NAMES[colours & 3], "worst_colour": COLOUR_NAMES[colours >> 2 & 3],
         "start_colour": COLOUR_NAMES[colours >> 4 & 3], "news2": opt(news2), "news2_measured": measured,
         "alerts": [name for i, name in enumerate(ALERTS) if alerts >> i & 1],
-        "cuffs": cuffs, **texts,
+        "cuffs": cuffs, **texts, "name": name,
         "points": [{
             "t": start + i * step,
             "hr": opt(series["hr"][i]), "spo2": opt(series["spo2"][i]), "rr": opt(series["rr"][i]),
             "temp": opt(series["temp"][i], 10, 25.0), "news2": opt(series["news2"][i]),
             "colour": COLOUR_NAMES[series["colour"][i] & 3],
+            "sbp_ppg": opt(series["sbp_ppg"][i]), "dbp_ppg": opt(series["dbp_ppg"][i]),
         } for i in range(n)],
     }
 
@@ -299,9 +341,9 @@ def from_digits(digits: str) -> bytes:
     return raw[1:]
 
 
-def encode(record: dict[str, Any], trend: Trend | None = None) -> str:
+def encode(record: dict[str, Any], trend: Trend | None = None, include_name: bool = True) -> str:
     trend = trend or bucket(record.get("readings") or [])
-    return to_digits(compress(pack(record, trend)))
+    return to_digits(compress(pack(record, trend, include_name)))
 
 
 def decode(digits: str) -> dict[str, Any]:

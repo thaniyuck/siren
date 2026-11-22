@@ -97,6 +97,10 @@ def render(record: dict[str, Any], result: QrResult, width: int = WIDTH_PX, tz=N
         text(f"TD manset {_num(c.get('sys'))}/{_num(c.get('dia'))} ({_hm(c['t'], tz)})", small)
     else:
         text("TD manset belum diukur", small)
+    ppg = [r for r in record.get("readings") or [] if r.get("sbp_ppg") is not None]
+    if ppg:
+        p = max(ppg, key=lambda r: P._ts(r["t"]))
+        text(f"TD estimasi PPG {_num(p.get('sbp_ppg'))}/{_num(p.get('dbp_ppg'))} ({_hm(p['t'], tz)})", small)
     pain = record.get("pain")
     text(f"Kesadaran {(record.get('acvpu') or '-')[0].upper()}, O2 {'ya' if record.get('on_oxygen') else 'tidak'}, "
          f"nyeri {'-' if pain is None else pain}/10", small)

@@ -21,9 +21,9 @@ def js_decode(digits: str) -> dict:
     return json.loads(out.stdout)
 
 
-def test_js_matches_python(record, long_record):
-    for rec in (record, long_record):
-        digits = P.encode(rec)
+def test_js_matches_python(record, long_record, deff_record):
+    for rec, with_name in ((record, True), (record, False), (long_record, True), (deff_record, True)):
+        digits = P.encode(rec, include_name=with_name)
         js, py = js_decode(digits), P.decode(digits)
         assert js.pop("version") == 1
         assert js == json.loads(json.dumps(py))

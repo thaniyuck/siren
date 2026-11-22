@@ -38,7 +38,7 @@ const CHARTS = [
   { key: "spo2", name: "SpO₂", unit: "%", domain: [85, 100], band: [96, 100], digits: 0 },
   { key: "rr", name: "Laju napas", unit: "/menit", domain: [6, 30], band: [12, 20], digits: 0 },
   { key: "temp", name: "Suhu", unit: "°C", domain: [35, 39], band: [36.1, 38.0], digits: 1 },
-  { key: "bp", name: "TD manset", unit: "mmHg", domain: [50, 170], band: [111, 219], digits: 0, cuff: true },
+  { key: "bp", name: "TD", unit: "mmHg", domain: [50, 170], band: [111, 219], digits: 0, cuff: true },
 ];
 
 const W = 360, H = 92, M = { l: 30, r: 10, t: 6, b: 16 }, STRIP = 12;
@@ -62,23 +62,20 @@ function setColourTag(node, colour) {
 
 // ------------------------------------------------------------------ summary --
 function renderSummary(r) {
-  $("code").textContent = r.code || "Tanpa kode";
-  $("unit").textContent = r.unit ? `Unit ${r.unit}` : "";
+  $("name").textContent = r.name || r.code || "Tanpa nama";
+  $("ident").textContent = [r.name ? r.code : null, r.unit ? `unit ${r.unit}` : null].filter(Boolean).join(", ");
   const block = $("colour-block");
   block.className = `colour-block ${r.colour || ""}`;
   $("colour-icon").textContent = { MERAH: "▲", KUNING: "■", HIJAU: "●" }[r.colour] || "";
   $("colour-text").textContent = r.colour || "BELUM ADA DATA";
 
   $("news2").textContent = r.news2 == null ? "–" : `${num(r.news2)} (${r.news2_measured}/7 parameter)`;
-  setColourTag($("worst"), r.worst_colour);
   setColourTag($("start-colour"), r.start_colour);
   const sex = { L: "laki-laki", P: "perempuan" }[r.sex] || "kelamin –";
   $("who").textContent = `${r.age == null ? "usia –" : `${num(r.age)} th`}, ${sex}`;
   $("acvpu").textContent = ACVPU_TEXT[r.acvpu] || "–";
   $("oxygen").textContent = r.on_oxygen ? "Ya, dengan O₂" : "Tidak (udara ruang)";
   $("pain").textContent = r.pain == null ? "–" : `${num(r.pain)}/10`;
-  const cuff = r.cuffs.at(-1);
-  $("cuff").textContent = cuff ? `${num(cuff.sys)}/${num(cuff.dia)} (${hm(cuff.t)})` : "Belum diukur";
   $("complaint").textContent = r.complaint || "–";
 
   const when = new Date(r.printed_at * 1000);
@@ -94,6 +91,65 @@ function renderSummary(r) {
   }
   $("alerts").hidden = r.alerts.length === 0;
 
+}
+
+// ------------------------------------------------ current vs worst condition --
+function renderCompare(r) {
+  const table = $("compare");
+  table.replaceChildren();
+  const withNews = r.points.filter((p) => p.news2 != null);
+  const now = withNews.at(-1) || r.points.at(-1);
+  // Worst = highest NEWS2; the earliest minute it was reached
+  const worst = withNews.reduce((w, p) => (w == null || p.news2 > w.news2 ? p : w), null);
+  // Cuff reading in effect at each moment (the last one taken at or before it)
+  const cuffAt = (t) => r.cuffs.filter((c) => c.t <= t + r.step_s).at(-1) || null;
+  const lastCuff = r.cuffs.at(-1);
+  const worstCuff = worst ? cuffAt(worst.t) : null;
+  const worstNews = [worst?.news2, r.news2].filter((v) => v != null);
+  const ppgText = (p) => (p && p.sbp_ppg != null ? `${num(p.sbp_ppg)}/${num(p.dbp_ppg)}` : "–");
+  const cuffCell = (c) => (c ? { main: `${num(c.sys)}/${num(c.dia)}`, sub: `diukur ${hm(c.t)}` } : "–");
+
+  const head = document.createElement("tr");
+  for (const text of ["", "Saat ini", "Terburuk"]) {
+    const th = document.createElement("th");
+    th.textContent = text;
+    head.appendChild(th);
+  }
+  table.appendChild(head);
+
+  const rows = [
+    ["Waktu", now ? hm(now.t) : "–", worst ? hm(worst.t) : "–"],
+    ["Kategori", { tag: r.colour }, { tag: r.worst_colour }],
+    ["NEWS2", num(r.news2 ?? now?.news2), num(worstNews.length ? Math.max(...worstNews) : null)],
+    ["Nadi (/menit)", num(now?.hr), num(worst?.hr)],
+    ["SpO₂ (%)", num(now?.spo2), num(worst?.spo2)],
+    ["Laju napas (/menit)", num(now?.rr), num(worst?.rr)],
+    ["Suhu (°C)", num(now?.temp, 1), num(worst?.temp, 1)],
+    ["TD manset", cuffCell(lastCuff), cuffCell(worstCuff)],
+    ["TD estimasi PPG", ppgText(now), ppgText(worst)],
+  ];
+  for (const cells of rows) {
+    const tr = document.createElement("tr");
+    cells.forEach((cell, i) => {
+      const td = document.createElement(i === 0 ? "th" : "td");
+      if (cell && typeof cell === "object" && "tag" in cell) {
+        const span = document.createElement("span");
+        setColourTag(span, cell.tag);
+        td.appendChild(span);
+      } else if (cell && typeof cell === "object") {
+        const main = document.createElement("span");
+        main.textContent = cell.main;
+        const sub = document.createElement("span");
+        sub.className = "sub muted";
+        sub.textContent = cell.sub;
+        td.append(main, sub);
+      } else {
+        td.textContent = cell;
+      }
+      tr.appendChild(td);
+    });
+    table.appendChild(tr);
+  }
 }
 
 // ------------------------------------------------------------------- charts --
@@ -133,7 +189,22 @@ function buildChart(spec, r, x, t0, t1) {
   const svg = el("svg", { viewBox: `0 0 ${W} ${height}`, role: "img", "aria-label": `Grafik ${spec.name}` });
   wrap.appendChild(svg);
 
-  const values = spec.cuff ? r.cuffs.flatMap((c) => [c.sys, c.dia]) : r.points.map((p) => p[spec.key]);
+  const values = spec.cuff
+    ? [...r.cuffs.flatMap((c) => [c.sys, c.dia]), ...r.points.flatMap((p) => [p.sbp_ppg, p.dbp_ppg])]
+    : r.points.map((p) => p[spec.key]);
+  const hasPpg = spec.cuff && r.points.some((p) => p.sbp_ppg != null);
+  if (hasPpg) {
+    const legend = document.createElement("div");
+    legend.className = "legend";
+    for (const [cls, text] of [["swatch-band", "Estimasi PPG (tiap menit)"], ["swatch-dot", "Manset"]]) {
+      const item = document.createElement("span");
+      const sw = document.createElement("i");
+      sw.className = cls;
+      item.append(sw, text);
+      legend.appendChild(item);
+    }
+    wrap.insertBefore(legend, svg);
+  }
   const [lo, hi] = niceDomain(spec, values);
   const plotBottom = H - M.b;
   const y = (v) => M.t + (hi - v) / (hi - lo) * (plotBottom - M.t);
@@ -156,6 +227,29 @@ function buildChart(spec, r, x, t0, t1) {
 
   const mid = r.step_s / 2;
   if (spec.cuff) {
+    if (hasPpg) {
+      // One band per run of minutes with both estimates; gaps stay gaps
+      let run = [];
+      const flush = () => {
+        if (!run.length) return;
+        const top = run.map((p) => `${x(p.t + mid).toFixed(1)},${y(p.sbp_ppg).toFixed(1)}`);
+        const bottom = run.slice().reverse().map((p) => `${x(p.t + mid).toFixed(1)},${y(p.dbp_ppg).toFixed(1)}`);
+        if (run.length === 1) {
+          const cx = x(run[0].t + mid);
+          el("line", { class: "ppg-edge", x1: cx, x2: cx, y1: y(run[0].sbp_ppg), y2: y(run[0].dbp_ppg) }, svg);
+        } else {
+          el("polygon", { class: "ppg-band", points: [...top, ...bottom].join(" ") }, svg);
+          el("polyline", { class: "ppg-edge", points: top.join(" ") }, svg);
+          el("polyline", { class: "ppg-edge", points: bottom.slice().reverse().join(" ") }, svg);
+        }
+        run = [];
+      };
+      for (const p of r.points) {
+        if (p.sbp_ppg != null && p.dbp_ppg != null) run.push(p);
+        else flush();
+      }
+      flush();
+    }
     for (const c of r.cuffs) {
       if (c.sys == null) continue;
       const cx = x(c.t);
@@ -208,7 +302,9 @@ function buildChart(spec, r, x, t0, t1) {
   function valueText(i, t) {
     if (spec.cuff) {
       const c = r.cuffs.filter((c) => c.t <= t).at(-1);
-      return c ? `${c.sys}/${c.dia ?? "–"} (${hm(c.t)})` : "belum diukur";
+      const cuff = c ? `manset ${c.sys}/${c.dia ?? "–"}` : "manset –";
+      const p = r.points[i];
+      return hasPpg ? `est ${num(p.sbp_ppg)}/${num(p.dbp_ppg)}, ${cuff}` : cuff;
     }
     const p = r.points[i];
     const v = num(p[spec.key], spec.digits);
@@ -217,7 +313,9 @@ function buildChart(spec, r, x, t0, t1) {
   function latestText() {
     if (spec.cuff) {
       const c = r.cuffs.at(-1);
-      return c ? `terakhir ${c.sys}/${c.dia ?? "–"}` : "belum diukur";
+      const cuff = c ? `manset ${c.sys}/${c.dia ?? "–"}` : "manset –";
+      const p = [...r.points].reverse().find((q) => q.sbp_ppg != null);
+      return p ? `est ${p.sbp_ppg}/${p.dbp_ppg ?? "–"}, ${cuff}` : cuff;
     }
     const last = [...r.points].reverse().find((p) => p[spec.key] != null);
     if (!last) return "tidak terukur";
@@ -280,13 +378,14 @@ function renderTable(r) {
     }
     table.appendChild(tr);
   };
-  row(["Waktu", "NEWS2", "Kategori", "Nadi", "SpO₂", "RR", "Suhu"], true);
+  row(["Waktu", "NEWS2", "Kategori", "Nadi", "SpO₂", "RR", "Suhu", "TD est."], true);
   for (const p of r.points) {
-    row([hm(p.t), num(p.news2), p.colour || "–", num(p.hr), num(p.spo2), num(p.rr), num(p.temp, 1)]);
+    const ppg = p.sbp_ppg != null ? `${num(p.sbp_ppg)}/${num(p.dbp_ppg)}` : "–";
+    row([hm(p.t), num(p.news2), p.colour || "–", num(p.hr), num(p.spo2), num(p.rr), num(p.temp, 1), ppg]);
   }
   if (r.cuffs.length) {
-    row(["Waktu", "TD manset", "", "", "", "", ""], true);
-    for (const c of r.cuffs) row([hm(c.t), `${num(c.sys)}/${num(c.dia)}`, "", "", "", "", ""]);
+    row(["Waktu", "TD manset", "", "", "", "", "", ""], true);
+    for (const c of r.cuffs) row([hm(c.t), `${num(c.sys)}/${num(c.dia)}`, "", "", "", "", "", ""]);
   }
 }
 
@@ -296,6 +395,7 @@ async function show() {
   try {
     const record = await decodeFragment(location.hash);
     renderSummary(record);
+    renderCompare(record);
     renderCharts(record);
     renderTable(record);
     state.hidden = true;

@@ -23,13 +23,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--png", type=Path, help="save the label as PNG")
     ap.add_argument("--escpos", help="print to a device: /dev/usb/lp0, /dev/rfcomm0, COM5")
     ap.add_argument("--baud", type=int, default=9600)
+    ap.add_argument("--no-name", action="store_true", help="leave the name out of the QR (still printed on paper)")
+    ap.add_argument("--max-version", type=int, default=qr.MAX_VERSION,
+                    help=f"largest QR version (default {qr.MAX_VERSION}; 12 = bigger modules, coarser trend)")
     args = ap.parse_args(argv)
 
     record = json.loads(args.record.read_text(encoding="utf-8"))
-    result = qr.make(record, args.base_url)
+    result = qr.make(record, args.base_url, max_version=args.max_version, include_name=not args.no_name)
     print(result.url)
-    print(f"QR version {result.version}, {result.points} points every {result.step_s} s, "
-          f"{len(result.url)} characters", file=sys.stderr)
+    dots = label.WIDTH_PX // (result.qr.modules_count + 8)
+    print(f"QR version {result.version} ({dots * 0.125:.2f} mm modules), {result.points} points every "
+          f"{result.step_s} s, {len(result.url)} characters", file=sys.stderr)
 
     if args.png or args.escpos:
         image = label.render(record, result)
