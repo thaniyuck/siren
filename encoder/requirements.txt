@@ -1,0 +1,7 @@
+qrcode==8.0
+pillow>=10.0
+# optional: serial or Bluetooth printers
+pyserial>=3.5
+# tests only
+pytest>=8.0
+zxing-cpp>=2.2

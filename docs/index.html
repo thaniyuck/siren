@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1a1a19" media="(prefers-color-scheme: dark)">
+  <title>SIREN</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <main id="app" class="viz-root" aria-live="polite">
+    <header class="brand">
+      <img src="icon.svg" alt="" width="28" height="28">
+      <span>SIREN</span>
+    </header>
+
+    <section id="state" class="card state">
+      <p>Membuka data pasien…</p>
+    </section>
+
+    <section id="patient" hidden>
+      <div class="card summary">
+        <div class="code-row">
+          <h1 id="code"></h1>
+          <span id="unit" class="muted"></span>
+        </div>
+        <div id="colour-block" class="colour-block">
+          <span id="colour-icon" aria-hidden="true"></span>
+          <span id="colour-text"></span>
+        </div>
+        <dl class="facts">
+          <div><dt>NEWS2</dt><dd id="news2"></dd></div>
+          <div><dt>Terberat</dt><dd id="worst"></dd></div>
+          <div><dt>START awal</dt><dd id="start-colour"></dd></div>
+          <div><dt>Usia, kelamin</dt><dd id="who"></dd></div>
+          <div><dt>Kesadaran</dt><dd id="acvpu"></dd></div>
+          <div><dt>Oksigen</dt><dd id="oxygen"></dd></div>
+          <div><dt>Nyeri</dt><dd id="pain"></dd></div>
+          <div><dt>TD manset terakhir</dt><dd id="cuff"></dd></div>
+        </dl>
+        <p class="complaint"><span class="muted">Keluhan</span> <span id="complaint"></span></p>
+        <p id="asof" class="asof"></p>
+      </div>
+
+      <div id="alerts" class="card alerts" hidden>
+        <h2>Peringatan selama transport</h2>
+        <ul id="alert-list"></ul>
+      </div>
+
+      <div class="card">
+        <div class="chart-head">
+          <h2>Tren</h2>
+          <span id="cursor-time" class="muted"></span>
+        </div>
+        <div id="charts"></div>
+      </div>
+
+      <details class="card">
+        <summary>Tabel data</summary>
+        <div class="table-wrap"><table id="table"></table></div>
+      </details>
+
+      <footer class="foot muted">
+        <p>Alat bantu keputusan, bukan pengganti penilaian klinis.</p>
+      </footer>
+    </section>
+  </main>
+</body>
+</html>

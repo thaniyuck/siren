@@ -1,0 +1,12 @@
+{
+  "name": "SIREN ringkasan pasien",
+  "short_name": "SIREN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f9f9f7",
+  "theme_color": "#d03b3b",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
