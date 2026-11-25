@@ -7,8 +7,8 @@
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
-  <meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#1a1a19" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f1f5f8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#06111b" media="(prefers-color-scheme: dark)">
   <title>SIREN</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -18,8 +18,11 @@
 <body>
   <main id="app" class="viz-root" aria-live="polite">
     <header class="brand">
-      <img src="icon.svg" alt="" width="28" height="28">
-      <span>SIREN</span>
+      <picture>
+        <source srcset="logo-dark.svg" media="(prefers-color-scheme: dark)">
+        <img src="logo.svg" alt="SIREN" class="logo">
+      </picture>
+      <span class="brand-sub">Ringkasan pasien</span>
     </header>
 
     <section id="state" class="card state">
